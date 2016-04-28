@@ -3,7 +3,7 @@ package thread.test;
 import java.io.File;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.gradle.tooling.CancellationTokenSource;
+import org.gradle.tooling.BuildLauncher;
 import org.gradle.tooling.GradleConnector;
 import org.gradle.tooling.ProjectConnection;
 
@@ -19,16 +19,18 @@ public class Main implements Runnable {
     public void run() {
         GradleConnector gconn = GradleConnector.newConnector().useGradleVersion("2.13");
         ThreadGroup tg = Thread.currentThread().getThreadGroup();
-        CancellationTokenSource cancellationTokenSource = GradleConnector.newCancellationTokenSource();
         ProjectConnection pconn = null;
         try {
             System.out.println("Active Threads [pre conn]: " + tg.activeCount());
-            pconn = gconn.forProjectDirectory(new File(System.getProperty("user.dir"), "../services-clubs-service")).connect();
+            pconn = gconn.forProjectDirectory(new File(System.getProperty("user.dir"))).connect();
             System.out.println("Active Threads [pre build]: " + tg.activeCount());
-            pconn.newBuild().withArguments("clean", "build", "-x", "check")
-                    .withCancellationToken(cancellationTokenSource.token())
-                    .setStandardOutput(System.out)
-                    .run();
+            
+            BuildLauncher build = pconn.newBuild().withArguments("build", "-x", "check")
+                    .setStandardOutput(System.out);
+            
+            // It is the colored outputwhich generates anotherthread on 2.13
+            build.setColorOutput(true);
+            build.run();
             System.out.println("Active Threads [post build]: " + tg.activeCount());
         } finally {
             if (pconn != null) {
